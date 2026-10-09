@@ -34,7 +34,7 @@ export default function ResultCard({ data, onReset }) {
     source === 'qr'
       ? 'Barcode verified'
       : source === 'ocr+qr'
-      ? 'Optical OCR'
+      ? 'QR Code '
       : 'Optical OCR';
 
   // Helper to get field value
@@ -43,6 +43,22 @@ export default function ResultCard({ data, onReset }) {
     if (typeof field === 'string') return field;
     return field.value || null;
   };
+
+  // Helper to convert ISO "YYYY-MM-DD" into Indian "DD/MM/YYYY"
+const formatDateToIndian = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return dateStr;
+
+  // Check if the date is in "YYYY-MM-DD" format
+  const parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  }
+
+  // If it's already in another format or just a year, return it as-is
+  return dateStr;
+};
+
 
   // Extract structured fields
   const fields = [];
@@ -63,7 +79,7 @@ export default function ResultCard({ data, onReset }) {
 
   // DOB
   const dob = getVal(front.dob);
-  if (dob) fields.push({ label: 'Date of birth', value: dob });
+  if (dob) fields.push({ label: 'Date of birth', value: formatDateToIndian(dob) });
 
   // Gender
   const gender = getVal(front.gender);
@@ -79,10 +95,10 @@ export default function ResultCard({ data, onReset }) {
 
   // Issue & Expiry Dates
   const issueDate = getVal(front.issue_date);
-  if (issueDate) fields.push({ label: 'Issue date', value: issueDate });
+  if (issueDate) fields.push({ label: 'Issue date', value: formatDateToIndian(issueDate)});
 
   const expiryDate = getVal(front.expiry_date);
-  if (expiryDate) fields.push({ label: 'Expiry date', value: expiryDate });
+  if (expiryDate) fields.push({ label: 'Expiry date', value: formatDateToIndian(expiryDate) });
 
   // Address & PIN
   const address = getVal(back.address);
