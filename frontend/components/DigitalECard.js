@@ -5,7 +5,9 @@ import {
   Text,
   View,
   Image,
+  TouchableOpacity,
 } from 'react-native';
+import { QrCode, User, Camera } from 'lucide-react-native';
 
 /**
  * DigitalECard: Clean, elegant off-white Apple Wallet-style digital identity pass.
@@ -16,12 +18,26 @@ const DigitalECard = forwardRef(({
   docType = 'driving_licence',
   name = 'Cardholder',
   idNumber = '',
-  photoBase64 = null,
+  photoUri = null,
+  gender = '',
   activeFields = [],
+  onPhotoPress = null,
 }, ref) => {
   const isDL = docType === 'driving_licence';
   const isAadhaar = docType === 'aadhaar_card';
   const docTitle = isDL ? 'Driving Licence' : isAadhaar ? 'Aadhaar ID' : 'Identity Card';
+
+  // Format photo source whether base64 raw or file/http URI
+  const imageSource = photoUri
+    ? {
+        uri:
+          photoUri.startsWith('data:') ||
+          photoUri.startsWith('file:') ||
+          photoUri.startsWith('http')
+            ? photoUri
+            : `data:image/jpeg;base64,${photoUri}`,
+      }
+    : null;
 
   // Filter out the primary name and ID number so they are NEVER duplicated in the secondary grid
   const displayFields = activeFields.filter((f) => {
@@ -47,6 +63,8 @@ const DigitalECard = forwardRef(({
     return true;
   });
 
+  const PhotoComponent = onPhotoPress ? TouchableOpacity : View;
+
   return (
     <View ref={ref} collapsable={false} style={styles.cardWrapper}>
       <View style={styles.cardContainer}>
@@ -71,20 +89,43 @@ const DigitalECard = forwardRef(({
 
         {/* 2. Primary Hero: Portrait Photo + Name + Primary ID Number */}
         <View style={styles.heroRow}>
-          {photoBase64 ? (
-            <View style={styles.photoFrame}>
-              <Image
-                source={{ uri: `data:image/jpeg;base64,${photoBase64}` }}
-                style={styles.cardPhoto}
-                resizeMode="cover"
-              />
-            </View>
-          ) : (
-            <View style={styles.placeholderFrame}>
-              <Text style={styles.placeholderGlyph}>🪪</Text>
-              <Text style={styles.placeholderText}>No Photo</Text>
-            </View>
-          )}
+          <PhotoComponent
+            style={styles.photoTouchable}
+            onPress={onPhotoPress}
+            activeOpacity={0.8}
+            disabled={!onPhotoPress}
+          >
+            {imageSource ? (
+              <View style={styles.photoFrame}>
+                <Image
+                  source={imageSource}
+                  style={styles.cardPhoto}
+                  resizeMode="cover"
+                />
+                {onPhotoPress && (
+                  <View style={styles.photoEditBadge}>
+                    <Camera size={11} color="#FFFFFF" strokeWidth={2.2} />
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.placeholderFrame}>
+                <View style={styles.avatarCircle}>
+                  <User size={34} color="#64748B" strokeWidth={1.5} />
+                </View>
+                <Text style={styles.placeholderText}>
+                  {gender && (gender.toLowerCase().includes('f') || gender.toLowerCase().includes('female'))
+                    ? 'FEMALE'
+                    : 'PHOTO'}
+                </Text>
+                {onPhotoPress && (
+                  <View style={styles.photoEditBadge}>
+                    <Camera size={11} color="#FFFFFF" strokeWidth={2.2} />
+                  </View>
+                )}
+              </View>
+            )}
+          </PhotoComponent>
 
           <View style={styles.heroDetails}>
             <Text style={styles.cardholderName} numberOfLines={2}>
@@ -139,7 +180,7 @@ const DigitalECard = forwardRef(({
         {/* 5. Minimalist Elegant Footer */}
         <View style={styles.cardFooter}>
           <View style={styles.footerCenterRow}>
-            <Text style={styles.footerQrGlyph}>▣</Text>
+            <QrCode size={12} color="#94A3B8" strokeWidth={1.75} />
             <Text style={styles.footerSecurityText}>CARTA SECURE ID</Text>
           </View>
         </View>
@@ -227,6 +268,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  photoTouchable: {
+    marginRight: 16,
+  },
   photoFrame: {
     width: 78,
     height: 100,
@@ -235,11 +279,22 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     backgroundColor: '#F1F5F9',
     overflow: 'hidden',
-    marginRight: 16,
+    position: 'relative',
   },
   cardPhoto: {
     width: '100%',
     height: '100%',
+  },
+  photoEditBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeholderFrame: {
     width: 78,
@@ -250,16 +305,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    position: 'relative',
   },
-  placeholderGlyph: {
-    fontSize: 22,
+  avatarCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 4,
   },
   placeholderText: {
-    fontSize: 9,
+    fontSize: 8.5,
     color: '#94A3B8',
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   heroDetails: {
     flex: 1,
@@ -342,10 +403,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  footerQrGlyph: {
-    fontSize: 11,
-    color: '#94A3B8',
   },
   footerSecurityText: {
     fontSize: 9,

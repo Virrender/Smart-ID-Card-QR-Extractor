@@ -11,18 +11,38 @@ import {
   TextInput,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  Share2,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+  Camera,
+  Image as ImageIcon,
+  User,
+  RotateCcw,
+  Phone,
+  ShieldAlert,
+  Mail,
+  Droplets,
+  Car,
+} from 'lucide-react-native';
 import DigitalECard from './DigitalECard';
 
 // Quick preset chips for custom field addition
 const PRESETS = [
-  { label: 'Mobile No', placeholder: '+91 98765 43210', keyboardType: 'phone-pad', icon: '📞' },
-  { label: 'Emergency Contact', placeholder: '+91 98765 00000', keyboardType: 'phone-pad', icon: '🚨' },
-  { label: 'Email', placeholder: 'user@example.com', keyboardType: 'email-address', icon: '✉️' },
-  { label: 'Blood Group', placeholder: 'O+', keyboardType: 'default', icon: '🩸' },
-  { label: 'Vehicle Class', placeholder: 'MCWG, LMV', keyboardType: 'default', icon: '🚗' },
+  { label: 'Mobile No', placeholder: '+91 98765 43210', keyboardType: 'phone-pad', icon: Phone },
+  { label: 'Emergency Contact', placeholder: '+91 98765 00000', keyboardType: 'phone-pad', icon: ShieldAlert },
+  { label: 'Email', placeholder: 'user@example.com', keyboardType: 'email-address', icon: Mail },
+  { label: 'Blood Group', placeholder: 'O+', keyboardType: 'default', icon: Droplets },
+  { label: 'Vehicle Class', placeholder: 'MCWG, LMV', keyboardType: 'default', icon: Car },
 ];
 
 /**
@@ -97,6 +117,11 @@ export default function ResultCard({ data, onReset }) {
   const [copied, setCopied] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
 
+  // Custom photo management state
+  const rawOriginalPhoto = data?.photo_base64 || data?.result?.photo_base64 || null;
+  const [currentPhoto, setCurrentPhoto] = useState(rawOriginalPhoto);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+
   // Modal state for adding extra fields
   const [modalVisible, setModalVisible] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
@@ -109,12 +134,12 @@ export default function ResultCard({ data, onReset }) {
   const result = data.result || {};
   const front = result.front || {};
   const back = result.back || {};
-  const photoB64 = data.photo_base64 || result.photo_base64;
   const warnings = data.warnings || result.warnings || [];
 
   const isDL = docType === 'driving_licence';
   const isAadhaar = docType === 'aadhaar_card';
   const docTitle = isDL ? 'Driving Licence' : isAadhaar ? 'Aadhaar Card' : 'Identity Document';
+  const genderVal = front.gender?.value || front.gender || '';
 
   const getVal = (field) => {
     if (!field) return null;
@@ -174,7 +199,6 @@ export default function ResultCard({ data, onReset }) {
     }
 
     // 4. Gender
-    const genderVal = getVal(front.gender);
     if (genderVal) {
       list.push({
         id: 'gender',
@@ -328,6 +352,41 @@ export default function ResultCard({ data, onReset }) {
     setFields((prev) => prev.filter((f) => f.id !== id));
   };
 
+  // Pick custom photo from user phone gallery
+  const handlePickGalleryPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Needed', 'Please allow gallery access to select a photo.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.85,
+      });
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        setCurrentPhoto(res.assets[0].uri);
+        setPhotoModalVisible(false);
+      }
+    } catch (e) {
+      Alert.alert('Photo Error', e.message);
+    }
+  };
+
+  // Remove photo and use gender silhouette avatar
+  const handleRemovePhoto = () => {
+    setCurrentPhoto(null);
+    setPhotoModalVisible(false);
+  };
+
+  // Reset to original document photo
+  const handleResetDocumentPhoto = () => {
+    setCurrentPhoto(rawOriginalPhoto);
+    setPhotoModalVisible(false);
+  };
+
   // Extract name and primary ID for eCard hero section
   const cardholderName = fields.find((f) => f.id === 'name')?.displayValue || 'CARDHOLDER';
   const rawIdField = fields.find((f) => f.id === 'id_number');
@@ -395,31 +454,39 @@ export default function ResultCard({ data, onReset }) {
           docType={docType}
           name={cardholderName}
           idNumber={cardholderId}
-          photoBase64={photoB64}
+          photoUri={currentPhoto}
+          gender={genderVal}
           activeFields={fields}
+          onPhotoPress={() => setPhotoModalVisible(true)}
         />
       </View>
 
-      {/* 2. Primary Sharing & Export Actions */}
+      {/* 2. Buttery Light & Elegant Primary Action Buttons */}
       <View style={styles.actionRow}>
         <TouchableOpacity
           style={styles.shareImageBtn}
           onPress={handleShareECardImage}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
           disabled={sharingImage}
         >
+          <Share2 size={16} color="#1E293B" strokeWidth={2} />
           <Text style={styles.shareImageBtnText}>
-            {sharingImage ? 'Generating image...' : '📤 Share eCard (Image)'}
+            {sharingImage ? 'Generating...' : 'Share eCard'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.copyTextBtn}
           onPress={handleCopyText}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <Text style={styles.copyTextBtnText}>
-            {copied ? '✓ Copied' : '📋 Copy Text'}
+          {copied ? (
+            <Check size={16} color="#059669" strokeWidth={2.2} />
+          ) : (
+            <Copy size={16} color="#475569" strokeWidth={2} />
+          )}
+          <Text style={[styles.copyTextBtnText, copied && styles.copyTextBtnTextSuccess]}>
+            {copied ? 'Copied' : 'Copy Text'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -437,9 +504,48 @@ export default function ResultCard({ data, onReset }) {
           <TouchableOpacity
             style={styles.addDetailBtn}
             onPress={() => setModalVisible(true)}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <Text style={styles.addDetailBtnText}>+ Add Detail</Text>
+            <Plus size={13} color="#2563EB" strokeWidth={2.5} />
+            <Text style={styles.addDetailBtnText}>Add Detail</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Dedicated Card Photo Row */}
+        <View style={styles.photoControlRow}>
+          <View style={styles.photoControlLeft}>
+            <View style={styles.photoThumbPreview}>
+              {currentPhoto ? (
+                <Image
+                  source={{
+                    uri:
+                      currentPhoto.startsWith('data:') ||
+                      currentPhoto.startsWith('file:') ||
+                      currentPhoto.startsWith('http')
+                        ? currentPhoto
+                        : `data:image/jpeg;base64,${currentPhoto}`,
+                  }}
+                  style={styles.photoThumbImg}
+                />
+              ) : (
+                <User size={18} color="#64748B" strokeWidth={1.75} />
+              )}
+            </View>
+            <View>
+              <Text style={styles.photoControlLabel}>CARD PHOTO</Text>
+              <Text style={styles.photoControlStatus}>
+                {currentPhoto ? (currentPhoto === rawOriginalPhoto ? 'Document Photo' : 'Custom Gallery Photo') : 'Silhouette Avatar'}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.photoChangeBtn}
+            onPress={() => setPhotoModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Camera size={13} color="#475569" strokeWidth={2} />
+            <Text style={styles.photoChangeBtnText}>Change</Text>
           </TouchableOpacity>
         </View>
 
@@ -468,13 +574,17 @@ export default function ResultCard({ data, onReset }) {
 
               {/* Action buttons on row */}
               <View style={styles.fieldActions}>
-                {/* Mask / Unmask Toggle Button */}
+                {/* Mask / Unmask Toggle Button with Monochrome Lucide Icons */}
                 <TouchableOpacity
                   style={[styles.maskToggleBtn, f.isHidden && styles.maskToggleBtnActive]}
                   onPress={() => toggleFieldMask(f.id)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.maskToggleIcon}>{f.isHidden ? '🙈' : '👁️'}</Text>
+                  {f.isHidden ? (
+                    <EyeOff size={14} color="#B45309" strokeWidth={1.8} />
+                  ) : (
+                    <Eye size={14} color="#475569" strokeWidth={1.8} />
+                  )}
                   <Text style={[styles.maskToggleText, f.isHidden && styles.maskToggleTextActive]}>
                     {f.isHidden ? 'Masked' : 'Visible'}
                   </Text>
@@ -487,7 +597,7 @@ export default function ResultCard({ data, onReset }) {
                     onPress={() => handleDeleteField(f.id)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.deleteBtnText}>✕</Text>
+                    <Trash2 size={13} color="#DC2626" strokeWidth={2} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -513,7 +623,81 @@ export default function ResultCard({ data, onReset }) {
         <Text style={styles.resetBtnText}>Scan Another Document</Text>
       </TouchableOpacity>
 
-      {/* 6. Apple-Style Slide-Up Modal Sheet for Adding Details */}
+      {/* 6. Apple-Style Photo Selection Modal */}
+      <Modal
+        visible={photoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setPhotoModalVisible(false)}
+        >
+          <View style={styles.actionSheetContent}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.actionSheetTitle}>Cardholder Photo</Text>
+            <Text style={styles.actionSheetSubtitle}>
+              Customize the portrait displayed on your Carta eCard
+            </Text>
+
+            <TouchableOpacity
+              style={styles.actionSheetOption}
+              onPress={handlePickGalleryPhoto}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionSheetIconWrapper}>
+                <ImageIcon size={18} color="#2563EB" strokeWidth={2} />
+              </View>
+              <View style={styles.actionSheetOptionTextCol}>
+                <Text style={styles.actionSheetOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.actionSheetOptionDesc}>Pick a clear portrait from your photo library</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetOption}
+              onPress={handleRemovePhoto}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionSheetIconWrapper}>
+                <User size={18} color="#64748B" strokeWidth={2} />
+              </View>
+              <View style={styles.actionSheetOptionTextCol}>
+                <Text style={styles.actionSheetOptionTitle}>Use Silhouette Avatar</Text>
+                <Text style={styles.actionSheetOptionDesc}>Remove photo and display a gender-aware avatar</Text>
+              </View>
+            </TouchableOpacity>
+
+            {rawOriginalPhoto && currentPhoto !== rawOriginalPhoto && (
+              <TouchableOpacity
+                style={styles.actionSheetOption}
+                onPress={handleResetDocumentPhoto}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionSheetIconWrapper}>
+                  <RotateCcw size={18} color="#059669" strokeWidth={2} />
+                </View>
+                <View style={styles.actionSheetOptionTextCol}>
+                  <Text style={styles.actionSheetOptionTitle}>Reset to Document Photo</Text>
+                  <Text style={styles.actionSheetOptionDesc}>Revert to the original photo from the ID card</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.actionSheetCancelBtn}
+              onPress={() => setPhotoModalVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionSheetCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 7. Apple-Style Slide-Up Modal Sheet for Adding Details */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -528,22 +712,26 @@ export default function ResultCard({ data, onReset }) {
               Include phone, email, or emergency contact on your eCard.
             </Text>
 
-            {/* Quick Presets */}
+            {/* Quick Presets with Clean Vector Icons */}
             <Text style={styles.presetHeading}>QUICK PRESETS</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll}>
-              {PRESETS.map((p, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.presetChip}
-                  onPress={() => {
-                    setCustomLabel(p.label);
-                    setCustomKeyboard(p.keyboardType);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.presetChipText}>{p.icon} {p.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {PRESETS.map((p, i) => {
+                const IconComponent = p.icon;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.presetChip}
+                    onPress={() => {
+                      setCustomLabel(p.label);
+                      setCustomKeyboard(p.keyboardType);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <IconComponent size={13} color="#475569" strokeWidth={1.8} />
+                    <Text style={styles.presetChipText}>{p.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
             {/* Inputs */}
@@ -611,37 +799,48 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   shareImageBtn: {
-    flex: 1.3,
-    backgroundColor: '#0F172A',
-    paddingVertical: 14,
-    borderRadius: 14,
+    flex: 1.25,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   shareImageBtnText: {
-    color: '#FFFFFF',
+    color: '#1E293B',
     fontSize: 13.5,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   copyTextBtn: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
   },
   copyTextBtnText: {
-    color: '#334155',
+    color: '#475569',
     fontSize: 13.5,
     fontWeight: '600',
+  },
+  copyTextBtnTextSuccess: {
+    color: '#059669',
+    fontWeight: '700',
   },
   settingsCard: {
     backgroundColor: '#FFFFFF',
@@ -675,6 +874,9 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   addDetailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 13,
     paddingVertical: 8,
@@ -686,6 +888,65 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 12,
     fontWeight: '700',
+  },
+  photoControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 10,
+  },
+  photoControlLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  photoThumbPreview: {
+    width: 38,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  photoThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoControlLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  photoControlStatus: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  photoChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  photoChangeBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
   },
   fieldList: {
     flexDirection: 'column',
@@ -754,6 +1015,7 @@ const styles = StyleSheet.create({
   maskToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -764,10 +1026,6 @@ const styles = StyleSheet.create({
   maskToggleBtnActive: {
     backgroundColor: '#FEF3C7',
     borderColor: '#FDE68A',
-  },
-  maskToggleIcon: {
-    fontSize: 12,
-    marginRight: 4,
   },
   maskToggleText: {
     fontSize: 11,
@@ -784,11 +1042,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteBtnText: {
-    color: '#DC2626',
-    fontSize: 12,
-    fontWeight: '800',
   },
   noticeCard: {
     backgroundColor: '#FFFBEB',
@@ -821,6 +1074,71 @@ const styles = StyleSheet.create({
     color: '#475569',
     fontSize: 14,
     fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionSheetContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  actionSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  actionSheetSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 18,
+  },
+  actionSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  actionSheetIconWrapper: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheetOptionTextCol: {
+    flex: 1,
+  },
+  actionSheetOptionTitle: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  actionSheetOptionDesc: {
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+  actionSheetCancelBtn: {
+    marginTop: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheetCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
   },
   modalOverlay: {
     flex: 1,
@@ -865,6 +1183,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -918,7 +1239,7 @@ const styles = StyleSheet.create({
     flex: 1.5,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
   },

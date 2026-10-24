@@ -12,9 +12,11 @@
     "expo-sharing": "~58.0.20",
     "expo-splash-screen": "~58.0.11",
     "expo-status-bar": "~58.0.4",
+    "lucide-react-native": "^1.61.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
+    "react-native-svg": "15.16.0",
     "react-native-view-shot": "6.1.1",
     "react-native-web": "^0.21.4"
   },
