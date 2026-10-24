@@ -94,7 +94,6 @@ function formatDateToIndian(dateStr) {
 export default function ResultCard({ data, onReset }) {
   const eCardRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState('card'); // 'card' or 'details'
   const [copied, setCopied] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
 
@@ -107,9 +106,7 @@ export default function ResultCard({ data, onReset }) {
   if (!data) return null;
 
   const docType = data.document_type || 'unknown';
-  const source = data.extraction_source || 'ocr';
   const result = data.result || {};
-  const status = result.status || 'success';
   const front = result.front || {};
   const back = result.back || {};
   const photoB64 = data.photo_base64 || result.photo_base64;
@@ -371,13 +368,12 @@ export default function ResultCard({ data, onReset }) {
   const handleCopyText = async () => {
     try {
       const summaryLines = [
-        `📄 ${docTitle.toUpperCase()} DETAILS (via Carta)`,
-        '━━━━━━━━━━━━━━━━━━━━━',
+        `📄 ${docTitle.toUpperCase()} (via Carta)`,
+        '─────────────────────',
         ...fields
           .filter((f) => !f.isHidden || f.isSensitive)
           .map((f) => `${f.label}: ${f.displayValue}`),
-        '━━━━━━━━━━━━━━━━━━━━━',
-        'Verified locally with Carta Engine',
+        '─────────────────────',
       ];
 
       await Share.share({
@@ -392,30 +388,7 @@ export default function ResultCard({ data, onReset }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* 1. iOS-Style Segmented Control: eCard vs Detailed Table */}
-      <View style={styles.segmentContainer}>
-        <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'card' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('card')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.segmentText, activeTab === 'card' && styles.segmentTextActive]}>
-            🪪 Digital eCard
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'details' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('details')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.segmentText, activeTab === 'details' && styles.segmentTextActive]}>
-            📋 Data & Privacy
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 2. Apple Wallet-Inspired Digital eCard Preview */}
+      {/* 1. Apple-Style Clean Light Digital eCard */}
       <View style={styles.cardPreviewSection}>
         <DigitalECard
           ref={eCardRef}
@@ -424,11 +397,10 @@ export default function ResultCard({ data, onReset }) {
           idNumber={cardholderId}
           photoBase64={photoB64}
           activeFields={fields}
-          isVerified={status === 'success'}
         />
       </View>
 
-      {/* 3. Primary Sharing & Export Actions */}
+      {/* 2. Primary Sharing & Export Actions */}
       <View style={styles.actionRow}>
         <TouchableOpacity
           style={styles.shareImageBtn}
@@ -452,13 +424,13 @@ export default function ResultCard({ data, onReset }) {
         </TouchableOpacity>
       </View>
 
-      {/* 4. Privacy & Field Customization Sheet */}
+      {/* 3. Privacy & Field Customization Sheet */}
       <View style={styles.settingsCard}>
         <View style={styles.settingsHeader}>
-          <View>
-            <Text style={styles.settingsTitle}>Privacy & Customization</Text>
+          <View style={styles.settingsHeaderTextCol}>
+            <Text style={styles.settingsTitle}>Card Details & Privacy</Text>
             <Text style={styles.settingsSubtitle}>
-              Tap the eye icon to mask details before sharing
+              Tap the eye to mask fields before sharing
             </Text>
           </View>
 
@@ -467,7 +439,7 @@ export default function ResultCard({ data, onReset }) {
             onPress={() => setModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.addDetailBtnText}>+ Add Field</Text>
+            <Text style={styles.addDetailBtnText}>+ Add Detail</Text>
           </TouchableOpacity>
         </View>
 
@@ -478,8 +450,16 @@ export default function ResultCard({ data, onReset }) {
               <View style={styles.fieldMain}>
                 <View style={styles.fieldLabelRow}>
                   <Text style={styles.fieldLabel}>{f.label}</Text>
-                  {f.isCustom && <View style={styles.customPill}><Text style={styles.customPillText}>Custom</Text></View>}
-                  {f.isHidden && <View style={styles.maskedPill}><Text style={styles.maskedPillText}>Masked</Text></View>}
+                  {f.isCustom && (
+                    <View style={styles.customPill}>
+                      <Text style={styles.customPillText}>Custom</Text>
+                    </View>
+                  )}
+                  {f.isHidden && (
+                    <View style={styles.maskedPill}>
+                      <Text style={styles.maskedPillText}>Masked</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={[styles.fieldVal, f.isHidden && styles.fieldValMasked]}>
                   {f.displayValue}
@@ -496,7 +476,7 @@ export default function ResultCard({ data, onReset }) {
                 >
                   <Text style={styles.maskToggleIcon}>{f.isHidden ? '🙈' : '👁️'}</Text>
                   <Text style={[styles.maskToggleText, f.isHidden && styles.maskToggleTextActive]}>
-                    {f.isHidden ? 'Hidden' : 'Visible'}
+                    {f.isHidden ? 'Masked' : 'Visible'}
                   </Text>
                 </TouchableOpacity>
 
@@ -516,10 +496,10 @@ export default function ResultCard({ data, onReset }) {
         </View>
       </View>
 
-      {/* 5. Warnings / Notes (Subdued) */}
+      {/* 4. Notes / Disclaimers (subtle) */}
       {warnings && warnings.length > 0 && (
         <View style={styles.noticeCard}>
-          <Text style={styles.noticeHeading}>Notes & Disclaimers</Text>
+          <Text style={styles.noticeHeading}>Notes</Text>
           {warnings.map((w, idx) => (
             <Text key={idx} style={styles.noticeText}>
               &bull; {w}
@@ -528,12 +508,12 @@ export default function ResultCard({ data, onReset }) {
         </View>
       )}
 
-      {/* 6. Footer Reset Action */}
+      {/* 5. Footer Reset Action */}
       <TouchableOpacity style={styles.resetBtn} onPress={onReset} activeOpacity={0.8}>
         <Text style={styles.resetBtnText}>Scan Another Document</Text>
       </TouchableOpacity>
 
-      {/* 7. Modal Sheet for Adding Extra Information */}
+      {/* 6. Apple-Style Slide-Up Modal Sheet for Adding Details */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -543,12 +523,12 @@ export default function ResultCard({ data, onReset }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Add Custom Information</Text>
+            <Text style={styles.modalTitle}>Add Custom Detail</Text>
             <Text style={styles.modalSubtitle}>
-              Include extra details (phone, emergency contact) to your digital eCard.
+              Include phone, email, or emergency contact on your eCard.
             </Text>
 
-            {/* Preset Suggestions */}
+            {/* Quick Presets */}
             <Text style={styles.presetHeading}>QUICK PRESETS</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll}>
               {PRESETS.map((p, i) => (
@@ -567,16 +547,16 @@ export default function ResultCard({ data, onReset }) {
             </ScrollView>
 
             {/* Inputs */}
-            <Text style={styles.inputLabel}>FIELD LABEL</Text>
+            <Text style={styles.inputLabel}>LABEL</Text>
             <TextInput
               style={styles.textInput}
               value={customLabel}
               onChangeText={setCustomLabel}
-              placeholder="e.g. Mobile, Policy No"
+              placeholder="e.g. Mobile No, Policy No"
               placeholderTextColor="#94A3B8"
             />
 
-            <Text style={styles.inputLabel}>FIELD VALUE</Text>
+            <Text style={styles.inputLabel}>VALUE</Text>
             <TextInput
               style={styles.textInput}
               value={customValue}
@@ -605,7 +585,7 @@ export default function ResultCard({ data, onReset }) {
                 onPress={handleAddCustomField}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalSubmitBtnText}>Add to eCard</Text>
+                <Text style={styles.modalSubmitBtnText}>Add to Card</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -618,43 +598,12 @@ export default function ResultCard({ data, onReset }) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 48,
     backgroundColor: '#F1F5F9',
   },
-  segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 14,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-  },
-  segmentBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  segmentTextActive: {
-    color: '#0F172A',
-    fontWeight: '700',
-  },
   cardPreviewSection: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   actionRow: {
     flexDirection: 'row',
@@ -670,7 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -706,10 +655,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  settingsHeaderTextCol: {
+    flex: 1,
+    marginRight: 10,
   },
   settingsTitle: {
     fontSize: 15,
@@ -722,12 +675,12 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   addDetailBtn: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.25)',
+    borderColor: '#BFDBFE',
   },
   addDetailBtnText: {
     color: '#2563EB',
@@ -756,7 +709,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fieldLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
     textTransform: 'uppercase',
@@ -769,7 +722,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   customPillText: {
-    color: '#3B82F6',
+    color: '#2563EB',
     fontSize: 9.5,
     fontWeight: '700',
   },
@@ -813,7 +766,7 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   maskToggleIcon: {
-    fontSize: 13,
+    fontSize: 12,
     marginRight: 4,
   },
   maskToggleText: {

@@ -8,9 +8,9 @@ import {
 } from 'react-native';
 
 /**
- * DigitalECard: An Apple Wallet-inspired digital identity pass.
- * Designed with premium typography, frosted glass borders, and reactive fields.
- * Supports direct screenshot capture via ViewShot ref.
+ * DigitalECard: Clean, elegant off-white Apple Wallet-style digital identity pass.
+ * Features light ceramic/frosted finish, crisp typography, and live-reactive fields.
+ * Supports high-resolution snapshot capture via forwardRef.
  */
 const DigitalECard = forwardRef(({
   docType = 'driving_licence',
@@ -18,28 +18,39 @@ const DigitalECard = forwardRef(({
   idNumber = '',
   photoBase64 = null,
   activeFields = [],
-  isVerified = true,
 }, ref) => {
   const isDL = docType === 'driving_licence';
   const isAadhaar = docType === 'aadhaar_card';
   const docTitle = isDL ? 'Driving Licence' : isAadhaar ? 'Aadhaar ID' : 'Identity Card';
 
-  // Filter out the primary name and ID number since they are prominently displayed in the hero section
+  // Filter out the primary name and ID number so they are NEVER duplicated in the secondary grid
   const displayFields = activeFields.filter((f) => {
     if (f.isHidden) return false;
-    const lowerKey = (f.key || f.label || '').toLowerCase();
-    if (lowerKey.includes('name') && !lowerKey.includes('father') && !lowerKey.includes('husband')) return false;
-    if (lowerKey.includes('licence number') || lowerKey.includes('aadhaar number') || lowerKey === 'id_number') return false;
+    const lowerKey = (f.key || '').toLowerCase();
+    const lowerLabel = (f.label || '').toLowerCase();
+
+    // Skip cardholder primary name (shown in hero)
+    if (lowerKey === 'name' || lowerLabel === 'full name') return false;
+
+    // Skip licence / Aadhaar numbers (shown in hero id box)
+    if (
+      lowerKey.includes('licence') ||
+      lowerKey.includes('license') ||
+      lowerKey.includes('aadhaar') ||
+      lowerKey === 'id_number' ||
+      lowerLabel.includes('licence number') ||
+      lowerLabel.includes('aadhaar number')
+    ) {
+      return false;
+    }
+
     return true;
   });
 
   return (
     <View ref={ref} collapsable={false} style={styles.cardWrapper}>
       <View style={styles.cardContainer}>
-        {/* Subtle decorative glow overlay */}
-        <View style={styles.glowTopRight} />
-
-        {/* 1. Header Bar: Logo & Document Type */}
+        {/* 1. Header Bar: Brand Logo & Document Type */}
         <View style={styles.cardHeader}>
           <View style={styles.brandRow}>
             <View style={styles.brandBadge}>
@@ -51,14 +62,14 @@ const DigitalECard = forwardRef(({
             </View>
           </View>
 
-          <View style={[styles.docTypePill, isAadhaar ? styles.docTypePillAadhaar : styles.docTypePillDL]}>
-            <Text style={[styles.docTypePillText, isAadhaar ? styles.docTypeTextAadhaar : styles.docTypeTextDL]}>
+          <View style={styles.docTypePill}>
+            <Text style={styles.docTypePillText}>
               {docTitle.toUpperCase()}
             </Text>
           </View>
         </View>
 
-        {/* 2. Primary Hero: Photo + Name + Primary ID Number */}
+        {/* 2. Primary Hero: Portrait Photo + Name + Primary ID Number */}
         <View style={styles.heroRow}>
           {photoBase64 ? (
             <View style={styles.photoFrame}>
@@ -67,7 +78,6 @@ const DigitalECard = forwardRef(({
                 style={styles.cardPhoto}
                 resizeMode="cover"
               />
-              <View style={styles.photoVerifiedDot} />
             </View>
           ) : (
             <View style={styles.placeholderFrame}>
@@ -77,21 +87,13 @@ const DigitalECard = forwardRef(({
           )}
 
           <View style={styles.heroDetails}>
-            <View style={styles.statusRow}>
-              <View style={styles.verifiedChip}>
-                <Text style={styles.verifiedCheck}>✓</Text>
-                <Text style={styles.verifiedText}>Verified ID</Text>
-              </View>
-              <Text style={styles.nfcGlyph}>(((•)))</Text>
-            </View>
-
             <Text style={styles.cardholderName} numberOfLines={2}>
               {name || 'CARDHOLDER'}
             </Text>
 
             <View style={styles.idBox}>
               <Text style={styles.idLabel}>
-                {isDL ? 'LICENCE NO' : isAadhaar ? 'AADHAAR NO' : 'ID NO'}
+                {isDL ? 'LICENCE NO.' : isAadhaar ? 'AADHAAR NO.' : 'ID NO.'}
               </Text>
               <Text style={styles.idValue} numberOfLines={1}>
                 {idNumber || '—'}
@@ -100,10 +102,10 @@ const DigitalECard = forwardRef(({
           </View>
         </View>
 
-        {/* 3. Divider */}
+        {/* 3. Hairline Divider */}
         <View style={styles.hairlineDivider} />
 
-        {/* 4. Secondary Attributes Grid (DOB, Dates, Custom fields) */}
+        {/* 4. Secondary Attributes Grid (Dates, Address, Custom Fields) */}
         {displayFields.length > 0 && (
           <View style={styles.attributesGrid}>
             {displayFields.map((field, idx) => {
@@ -134,19 +136,12 @@ const DigitalECard = forwardRef(({
           </View>
         )}
 
-        {/* 5. Footer Security Stamp & Barcode Strip */}
+        {/* 5. Minimalist Elegant Footer */}
         <View style={styles.cardFooter}>
-          <View style={styles.barcodeStrip}>
-            {/* Visual simulated micro-barcode for authentic digital credential feel */}
-            <View style={styles.barcodePattern}>
-              {[14, 28, 8, 22, 16, 30, 10, 26, 12, 20, 18, 24, 15, 29, 9, 21, 14, 27, 11, 23, 17, 25].map((h, i) => (
-                <View key={i} style={[styles.barcodeBar, { height: h }]} />
-              ))}
-            </View>
+          <View style={styles.footerCenterRow}>
+            <Text style={styles.footerQrGlyph}>▣</Text>
+            <Text style={styles.footerSecurityText}>CARTA SECURE ID</Text>
           </View>
-          <Text style={styles.footerSecurityText}>
-            OFFICIALLY VERIFIED • LOCAL AI DECODE
-          </Text>
         </View>
       </View>
     </View>
@@ -158,32 +153,22 @@ export default DigitalECard;
 const styles = StyleSheet.create({
   cardWrapper: {
     borderRadius: 22,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 10,
-    overflow: 'hidden',
+    elevation: 4,
     marginVertical: 4,
   },
   cardContainer: {
     padding: 20,
     borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FAFAFC',
     position: 'relative',
     overflow: 'hidden',
-  },
-  glowTopRight: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -196,60 +181,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
   },
   brandBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
+    color: '#1E293B',
+    fontWeight: '800',
     fontSize: 16,
-    letterSpacing: -0.5,
   },
   brandTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 1.5,
+    color: '#1E293B',
+    letterSpacing: 1.2,
   },
   brandSubtitle: {
-    fontSize: 8,
+    fontSize: 8.5,
     fontWeight: '600',
     color: '#94A3B8',
     letterSpacing: 0.8,
   },
   docTypePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 20,
     borderWidth: 1,
-  },
-  docTypePillDL: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-  },
-  docTypePillAadhaar: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
   },
   docTypePillText: {
     fontSize: 9.5,
     fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  docTypeTextDL: {
-    color: '#60A5FA',
-  },
-  docTypeTextAadhaar: {
-    color: '#FBBF24',
+    color: '#475569',
+    letterSpacing: 0.6,
   },
   heroRow: {
     flexDirection: 'row',
@@ -257,38 +228,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   photoFrame: {
-    width: 76,
-    height: 98,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    backgroundColor: '#1E293B',
+    width: 78,
+    height: 100,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F1F5F9',
     overflow: 'hidden',
-    position: 'relative',
     marginRight: 16,
   },
   cardPhoto: {
     width: '100%',
     height: '100%',
   },
-  photoVerifiedDot: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#10B981',
-    borderWidth: 1.5,
-    borderColor: '#0F172A',
-  },
   placeholderFrame: {
-    width: 76,
-    height: 98,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: '#1E293B',
+    width: 78,
+    height: 100,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -299,78 +258,50 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 9,
-    color: '#64748B',
+    color: '#94A3B8',
     fontWeight: '600',
   },
   heroDetails: {
     flex: 1,
     justifyContent: 'center',
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  verifiedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.16)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  verifiedCheck: {
-    color: '#34D399',
-    fontSize: 10,
-    fontWeight: '900',
-    marginRight: 4,
-  },
-  verifiedText: {
-    color: '#A7F3D0',
-    fontSize: 9.5,
-    fontWeight: '600',
-  },
-  nfcGlyph: {
-    color: 'rgba(255, 255, 255, 0.35)',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
   cardholderName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#1E293B',
     letterSpacing: -0.3,
     marginBottom: 8,
   },
   idBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   idLabel: {
-    fontSize: 8.5,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
     letterSpacing: 0.6,
-    marginBottom: 1,
+    marginBottom: 2,
   },
   idValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: 0.8,
+    color: '#1E293B',
+    letterSpacing: 0.6,
   },
   hairlineDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: 12,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 14,
   },
   attributesGrid: {
     flexDirection: 'row',
@@ -379,53 +310,47 @@ const styles = StyleSheet.create({
   },
   attributeItem: {
     width: '48%',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   attributeItemFullWidth: {
     width: '100%',
   },
   attributeLabel: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: '#64748B',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   attributeValue: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#F1F5F9',
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   attributeValueCustom: {
-    color: '#93C5FD',
+    color: '#1E40AF',
   },
   cardFooter: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  barcodeStrip: {
-    height: 22,
     justifyContent: 'center',
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
-  barcodePattern: {
+  footerCenterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 6,
   },
-  barcodeBar: {
-    width: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    borderRadius: 1,
+  footerQrGlyph: {
+    fontSize: 11,
+    color: '#94A3B8',
   },
   footerSecurityText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.4)',
-    letterSpacing: 0.8,
+    color: '#94A3B8',
+    letterSpacing: 1.2,
   },
 });

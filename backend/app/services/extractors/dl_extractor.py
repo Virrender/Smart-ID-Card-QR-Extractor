@@ -162,11 +162,33 @@ class DrivingLicenceExtractor:
                 return False, text
 
             clean = re.sub(r'[^A-Z0-9]', '', t_upper)
-            # Indian DL format: 2-letter State Code + 2-digit RTO Code + number (e.g. HP91 20240000388 or DL0420110012345)
-            if 10 <= len(clean) <= 18 and re.match(r'^[A-Z]{2}\d{2}[0-9A-Z]{6,14}$', clean):
-                return True, clean
-            if 10 <= len(clean) <= 18 and re.match(r'^[A-Z]{2}\d{2,}', clean) and sum(c.isdigit() for c in clean) >= 7:
-                return True, clean
+
+            # Strip non-standard license category abbreviations (PDL = Permanent DL, TR, NT, COV)
+            # and canonicalize into standard Indian Sarathi MoRTH format: SS-RR YYYYNNNNNNN
+            clean_no_cat = re.sub(r'^([A-Z]{2}\d{2})(?:PDL|NT|TR|DL|COV)(.+)$', r'\1\2', clean)
+
+            # Case A: Year at the end (e.g. HP91 0000388 2024 -> HP91 20240000388)
+            m_flip = re.match(r'^([A-Z]{2}\d{2})(\d{7})(20\d{2}|19\d{2})$', clean_no_cat)
+            if m_flip:
+                normalized = f"{m_flip.group(1)} {m_flip.group(3)}{m_flip.group(2)}"
+                return True, normalized
+
+            # Case B: Standard Sarathi format (e.g. HP91 20240000388)
+            m_std = re.match(r'^([A-Z]{2}\d{2})(20\d{2}|19\d{2})(\d{7})$', clean_no_cat)
+            if m_std:
+                normalized = f"{m_std.group(1)} {m_std.group(2)}{m_std.group(3)}"
+                return True, normalized
+
+            # Case C: Other valid state DL numbers (10 to 18 characters)
+            if 10 <= len(clean_no_cat) <= 18 and re.match(r'^[A-Z]{2}\d{2}[0-9A-Z]{6,14}$', clean_no_cat):
+                # Format with space after RTO code for readability
+                formatted = f"{clean_no_cat[:4]} {clean_no_cat[4:]}"
+                return True, formatted
+
+            if 10 <= len(clean_no_cat) <= 18 and re.match(r'^[A-Z]{2}\d{2,}', clean_no_cat) and sum(c.isdigit() for c in clean_no_cat) >= 7:
+                formatted = f"{clean_no_cat[:4]} {clean_no_cat[4:]}"
+                return True, formatted
+
             return False, text
 
         for block in blocks:
