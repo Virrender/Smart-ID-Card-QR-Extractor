@@ -98,7 +98,7 @@ export default function ScanScreen({ onBack }) {
           <TouchableOpacity style={styles.navActionBtn} onPress={onBack}>
             <Text style={styles.navActionText}>&larr; Home</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle}>Result</Text>
+          <Text style={styles.navTitle}>Carta Pass</Text>
           <TouchableOpacity style={styles.navActionBtn} onPress={resetScan}>
             <Text style={styles.navActionText}>Rescan</Text>
           </TouchableOpacity>
@@ -117,7 +117,7 @@ export default function ScanScreen({ onBack }) {
         <TouchableOpacity style={styles.scannerHeaderBtn} onPress={onBack}>
           <Text style={styles.scannerHeaderBtnText}>&larr; Back</Text>
         </TouchableOpacity>
-        <Text style={styles.scannerHeaderTitle}>Scan Code</Text>
+        <Text style={styles.scannerHeaderTitle}>Carta Scanner</Text>
         <TouchableOpacity
           style={[styles.torchBtn, torch && styles.torchBtnActive]}
           onPress={() => setTorch(!torch)}>

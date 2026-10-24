@@ -65,9 +65,9 @@ export default function HomeScreen({ onNavigate }) {
 
         {/* Hero Header */}
         <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>Documents</Text>
+          <Text style={styles.heroTitle}>Carta</Text>
           <Text style={styles.heroSubtitle}>
-            Extract verified details from identity cards with local processing.
+            Private identity credential intelligence. Extract verified details and create digital eCards.
           </Text>
         </View>
 

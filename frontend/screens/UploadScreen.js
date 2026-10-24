@@ -137,7 +137,7 @@ export default function UploadScreen({ onBack }) {
           <TouchableOpacity style={styles.navActionBtn} onPress={onBack}>
             <Text style={styles.navActionText}>&larr; Home</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle}>Result</Text>
+          <Text style={styles.navTitle}>Carta Pass</Text>
           <TouchableOpacity style={styles.navActionBtn} onPress={resetAll}>
             <Text style={styles.navActionText}>New</Text>
           </TouchableOpacity>
