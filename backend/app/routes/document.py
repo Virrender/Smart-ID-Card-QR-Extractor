@@ -348,7 +348,9 @@ async def extract_document(
             extraction_source = _merge_qr_into_dl(ocr_result, qr_fields)
 
     # ── 6. Photo extraction from orientation-corrected front image ────────────
-    photo_b64: Optional[str] = None
+    existing_qr_photo = getattr(ocr_result, "photo_base64", None)
+    photo_b64: Optional[str] = existing_qr_photo
+
     if front_corrected is not None:
         try:
             photo_bytes = extract_portrait_photo(front_corrected)

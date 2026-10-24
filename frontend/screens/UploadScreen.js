@@ -34,7 +34,7 @@ export default function UploadScreen({ onBack }) {
       }
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        quality: 0.75,
+        quality: 0.65,
       });
       if (!res.canceled && res.assets && res.assets.length > 0) {
         setter(res.assets[0].uri);
@@ -55,7 +55,7 @@ export default function UploadScreen({ onBack }) {
       }
       const res = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        quality: 0.75,
+        quality: 0.65,
       });
       if (!res.canceled && res.assets && res.assets.length > 0) {
         setter(res.assets[0].uri);
@@ -73,7 +73,7 @@ export default function UploadScreen({ onBack }) {
     }
 
     setLoading(true);
-    setStatusMsg('Processing document...');
+    setStatusMsg(backUri ? 'Running deep learning OCR on front & back pages...' : 'Running deep learning OCR on document...');
     setErrorDetail(null);
 
     // Build multipart FormData with CustomFormData to format parts correctly
@@ -99,7 +99,8 @@ export default function UploadScreen({ onBack }) {
     }
 
     try {
-      const res = await uploadMultipart(`${API_BASE}/api/v1/extract`, formData);
+      const baseUrl = (API_BASE || '').trim().replace(/\/+$/, '');
+      const res = await uploadMultipart(`${baseUrl}/api/v1/extract`, formData);
 
       if (res.ok) {
         setResult(res.data);

@@ -45,13 +45,12 @@ logging.getLogger("ppocr").setLevel(logging.WARNING)
 # median estimate enough to attempt a fine-skew correction pass.
 MIN_LINES_FOR_ANGLE_ESTIMATE = 3
 
-# Only trigger a fine-skew correction when the estimated tilt exceeds this
-# threshold (in degrees). Raised from 1.5 -> 4.0 after a real photo (near-
-# perfectly aligned, but with natural noise in the angle estimate) falsely
-# triggered a rotation that blurred bold text enough to break name reads.
-# The built-in orientation classifier already handles the coarse 90-degree
-# cases; this fires only for genuine moderate/severe tilts.
-FINE_SKEW_THRESHOLD_DEGREES = 4.0
+# Only trigger a fine-skew correction when the estimated tilt is severe
+# AND the initial OCR quality is poor. PaddleOCR's built-in DBNet detects
+# arbitrary oriented bounding boxes and use_textline_orientation normalizes
+# individual text lines, so mild tilts (< 6.0°) are handled natively without
+# burning CPU time on redundant full-page re-inference.
+FINE_SKEW_THRESHOLD_DEGREES = 6.0
 
 # Perspective/dewarping is a heavier model than the orientation classifier,
 # AND it visibly damaged an already-flat test image. Keep this off by default.
@@ -319,38 +318,40 @@ class PaddleOCREngine:
             return [], corrected_img
 
         # ── Step 2: estimate fine-skew ─────────────────────────────────────────
+        baseline_quality = self._count_long_words(blocks)
+        # If the page already has rich, high-confidence text (>= 8 words),
+        # PaddleOCR's oriented-line detector succeeded; skip expensive re-inference.
+        if baseline_quality >= 8:
+            return blocks, corrected_img
+
         skew = self._estimate_skew_from_blocks(blocks)
         if skew is None or abs(skew) < FINE_SKEW_THRESHOLD_DEGREES:
             return blocks, corrected_img
 
         logger.info(
-            f"Estimated fine skew {skew:.2f}° on page '{page.page_source}' — "
-            f"attempting correction pass."
+            f"Estimated fine skew {skew:.2f}° on page '{page.page_source}' (baseline words={baseline_quality}) — "
+            f"attempting single targeted correction pass."
         )
 
-        # ── Step 3: fine-skew correction ──────────────────────────────────────
-        baseline_quality = self._count_long_words(blocks)
-        best_blocks = blocks
-        best_img = corrected_img
-        best_quality = baseline_quality
-
-        for sign in (-1, +1):
-            angle_to_apply = sign * skew
-            rotated = corrected_img.rotate(
-                angle_to_apply,
-                resample=Image.BICUBIC,
-                expand=True,
-                fillcolor=(255, 255, 255),
+        # ── Step 3: single targeted fine-skew correction pass ──────────────────
+        # Rotate by -skew to level clockwise tilt back to horizontal.
+        angle_to_apply = -skew
+        rotated = corrected_img.rotate(
+            angle_to_apply,
+            resample=Image.BICUBIC,
+            expand=True,
+            fillcolor=(255, 255, 255),
+        )
+        rot_w, rot_h = rotated.size
+        pd2, _ = self._predict(rotated)
+        new_blocks = self._parse_blocks(
+            pd2, page.page_source, page.page_index, rot_w, rot_h
+        )
+        new_quality = self._count_long_words(new_blocks)
+        if new_quality > baseline_quality:
+            logger.info(
+                f"Skew correction improved word count from {baseline_quality} to {new_quality} on '{page.page_source}'."
             )
-            rot_w, rot_h = rotated.size
-            pd2, _ = self._predict(rotated)
-            new_blocks = self._parse_blocks(
-                pd2, page.page_source, page.page_index, rot_w, rot_h
-            )
-            quality = self._count_long_words(new_blocks)
-            if quality > best_quality:
-                best_quality = quality
-                best_blocks = new_blocks
-                best_img = rotated
+            return new_blocks, rotated
 
-        return best_blocks, best_img
+        return blocks, corrected_img

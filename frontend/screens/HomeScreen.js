@@ -18,7 +18,11 @@ export default function HomeScreen({ onNavigate }) {
     let isMounted = true;
     const checkServer = async () => {
       try {
-        const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
+        const baseUrl = (API_BASE || '').trim().replace(/\/+$/, '');
+        const res = await fetch(`${baseUrl}/health`, {
+          method: 'GET',
+          headers: { 'Bypass-Tunnel-Reminder': 'true' },
+        });
         if (isMounted) setServerOnline(res.ok);
       } catch (err) {
         if (isMounted) setServerOnline(false);

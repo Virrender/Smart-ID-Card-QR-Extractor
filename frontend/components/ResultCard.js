@@ -143,10 +143,13 @@ const formatDateToIndian = (dateStr) => {
 
         <View style={styles.profileRow}>
           {photoB64 ? (
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${photoB64}` }}
-              style={styles.photo}
-            />
+            <View style={styles.photoContainer}>
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${photoB64}` }}
+                style={styles.photo}
+                resizeMode="cover"
+              />
+            </View>
           ) : (
             <View style={styles.placeholderPhoto}>
               <Text style={styles.placeholderText}>No photo</Text>
@@ -274,23 +277,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  photo: {
-    width: 68,
-    height: 86,
+  photoContainer: {
+    width: 72,
+    height: 96,
     borderRadius: 10,
     backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
   },
   placeholderPhoto: {
-    width: 68,
-    height: 86,
+    width: 72,
+    height: 96,
     borderRadius: 10,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
   },
   placeholderText: {
     fontSize: 11,

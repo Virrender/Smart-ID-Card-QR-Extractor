@@ -36,7 +36,8 @@ export function uploadMultipart(url, formData) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
-    xhr.timeout = 120000; // 120 seconds timeout for resilient mobile uploads
+    xhr.setRequestHeader('Bypass-Tunnel-Reminder', 'true');
+    xhr.timeout = 240000; // 240 seconds (4 minutes) to comfortably support multi-page deep-learning OCR on CPU
 
     xhr.onload = () => {
       try {

@@ -45,6 +45,11 @@ class DrivingLicenceExtractor:
 
         # Extract Front
         id_number = self._extract_id_number(front_blocks)
+        if not id_number and back_blocks:
+            # Fallback: Indian state DLs (e.g. Himachal Pradesh, Karnataka) frequently print
+            # the primary DL number or endorsement number on the back card.
+            id_number = self._extract_id_number(back_blocks)
+
         dob = self._extract_date(front_blocks, ["dob", "date of birth", "d.o.b", "d.o.b."])
         name = self._extract_name(front_blocks, ["name", "holder name"])
         relative_name = self._extract_relative_name(front_blocks)
@@ -52,18 +57,20 @@ class DrivingLicenceExtractor:
         issue_date = self._extract_date(front_blocks, ["date of issue", "issue date", "issued on", "doi"], is_issue_date=True)
         expiry_date = self._extract_date(front_blocks, ["valid till", "validity", "expiry date", "exp date"], is_expiry_date=True)
 
-        # Cross-field integrity: ensure issue_date and expiry_date do not collide if multiple dates exist
-        if issue_date and expiry_date and issue_date.value == expiry_date.value:
-            dob_val = dob.value if dob else None
-            other_dates = []
-            for b in front_blocks:
-                ok, d = parse_calendar_date(b.text)
-                if ok and d != dob_val:
-                    other_dates.append((d, b))
-            unique_dates = sorted(list({d: b for d, b in other_dates}.items()), key=lambda x: x[0])
-            if len(unique_dates) >= 2:
-                earlier_date, earlier_blk = unique_dates[0]
-                later_date, later_blk = unique_dates[-1]
+        # Cross-field integrity: DLs have DOB, Issue Date, and Expiry Date.
+        # If issue_date or expiry_date are missing or collided, use date ordering (Issue < Expiry).
+        dob_val = dob.value if dob else None
+        other_dates = []
+        for b in front_blocks:
+            ok, d = parse_calendar_date(b.text)
+            if ok and d != dob_val:
+                other_dates.append((d, b))
+
+        unique_dates = sorted(list({d: b for d, b in other_dates}.items()), key=lambda x: x[0])
+        if len(unique_dates) >= 2:
+            earlier_date, earlier_blk = unique_dates[0]
+            later_date, later_blk = unique_dates[-1]
+            if not issue_date or (expiry_date and issue_date.value == expiry_date.value):
                 issue_date = ExtractedField(
                     value=earlier_date,
                     ocr_confidence=earlier_blk.ocr_confidence,
@@ -74,6 +81,7 @@ class DrivingLicenceExtractor:
                     bounding_box=earlier_blk.rect,
                     source_page="front"
                 )
+            if not expiry_date:
                 expiry_date = ExtractedField(
                     value=later_date,
                     ocr_confidence=later_blk.ocr_confidence,
@@ -145,8 +153,19 @@ class DrivingLicenceExtractor:
         candidates: List[FieldCandidate] = []
 
         def validate_id(text: str) -> Tuple[bool, str]:
-            clean = re.sub(r'[^A-Z0-9]', '', text.upper())
-            if 8 <= len(clean) <= 20 and re.match(r'^[A-Z]{2}', clean) and any(c.isdigit() for c in clean):
+            t_upper = text.upper()
+            # Reject address words, authority labels, and geographic entities
+            if any(stop in t_upper for stop in [
+                "PRADESH", "PERSONAL", "HOUSE", "STREET", "ROAD", "SECTOR",
+                "NAGAR", "COLONY", "DISTRICT", "HIMACHAL", "SIGNATURE", "AUTHORITY", "SIGN"
+            ]):
+                return False, text
+
+            clean = re.sub(r'[^A-Z0-9]', '', t_upper)
+            # Indian DL format: 2-letter State Code + 2-digit RTO Code + number (e.g. HP91 20240000388 or DL0420110012345)
+            if 10 <= len(clean) <= 18 and re.match(r'^[A-Z]{2}\d{2}[0-9A-Z]{6,14}$', clean):
+                return True, clean
+            if 10 <= len(clean) <= 18 and re.match(r'^[A-Z]{2}\d{2,}', clean) and sum(c.isdigit() for c in clean) >= 7:
                 return True, clean
             return False, text
 
@@ -175,6 +194,20 @@ class DrivingLicenceExtractor:
                 if val_ok:
                     candidates.append(FieldCandidate(block.text, norm, [block], "fallback", 999.0, block.ocr_confidence, True))
 
+        # Check for adjacent split blocks (e.g., ['HP91', '20240000388'])
+        if not candidates:
+            sorted_blocks = sorted(blocks, key=lambda b: (round(b.center[1] / 20.0), b.rect[0]))
+            for i in range(len(sorted_blocks) - 1):
+                b1 = sorted_blocks[i]
+                b2 = sorted_blocks[i + 1]
+                # Same horizontal line and reasonable spacing
+                if abs(b1.center[1] - b2.center[1]) < 20 and (0 <= (b2.rect[0] - b1.rect[2]) <= 80):
+                    combined = f"{b1.text.strip()} {b2.text.strip()}"
+                    val_ok, norm = validate_id(combined)
+                    if val_ok:
+                        avg_conf = (b1.ocr_confidence + b2.ocr_confidence) / 2.0
+                        candidates.append(FieldCandidate(combined, norm, [b1, b2], "fallback", 500.0, avg_conf, True))
+
         if not candidates:
             return None
 
@@ -184,6 +217,13 @@ class DrivingLicenceExtractor:
         if not best.format_valid:
             return None
 
+        bx = (
+            min(b.rect[0] for b in best.source_blocks),
+            min(b.rect[1] for b in best.source_blocks),
+            max(b.rect[2] for b in best.source_blocks),
+            max(b.rect[3] for b in best.source_blocks),
+        )
+
         return ExtractedField(
             value=best.normalized_value,
             ocr_confidence=best.ocr_confidence,
@@ -191,8 +231,8 @@ class DrivingLicenceExtractor:
             format_valid=best.format_valid,
             composite_score=compute_composite_score(best.ocr_confidence, best.anchor_relation != "fallback", best.format_valid),
             raw_text=best.raw_text,
-            bounding_box=best.source_blocks[0].rect,
-            source_page="front"
+            bounding_box=bx,
+            source_page=best.source_blocks[0].page_source
         )
 
     def _extract_date(
@@ -225,8 +265,8 @@ class DrivingLicenceExtractor:
                     if val_ok:
                         candidates.append(FieldCandidate(r.text, norm or r.text, [r], "right", r.rect[0] - block.rect[2], r.ocr_confidence, True))
 
-                # When scanning below, require column overlap
-                belows = find_blocks_below(block, blocks, vertical_limit=90, require_horizontal_overlap=True, overlap_tolerance=30.0)
+                # When scanning below, tolerate moderate column offset across card layouts
+                belows = find_blocks_below(block, blocks, vertical_limit=140, require_horizontal_overlap=True, overlap_tolerance=80.0)
                 for b in belows[:3]:
                     val_ok, norm = parse_calendar_date(b.text)
                     if val_ok:

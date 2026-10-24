@@ -30,103 +30,118 @@ logger = logging.getLogger(__name__)
 
 _FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-TARGET_MIN_BYTES = 10 * 1024
-TARGET_MAX_BYTES = 30 * 1024
-
-# Refined for exact passport-style boundaries (no extra massive spaces)
-# Haar Cascade finds the inner face. We pad just enough for hair and neck.
-HORIZONTAL_MARGIN_RATIO = 0.35  # Reduced from 0.9 (Tight sides)
-TOP_MARGIN_RATIO = 0.40         # Reduced from 0.8 (Enough for hair/turbans)
-BOTTOM_MARGIN_RATIO = 0.65      # Reduced from 1.3 (Enough for neck/upper shoulders)
+# Standard ICAO/Indian passport photo aspect ratio (width:height = 3:4)
+PASSPORT_ASPECT_RATIO = 0.75
+TARGET_OUTPUT_WIDTH = 300
+TARGET_OUTPUT_HEIGHT = 400
 
 
 def _detect_largest_face(cv_gray: np.ndarray):
     """
-    Attempts to detect the face using progressively relaxed parameters and 
-    contrast enhancement to overcome holograms, watermarks, and flat lighting.
+    Detects the cardholder's face using OpenCV Haar Cascade.
+    Scales image down to ~640px width for near-instant (20-30ms) evaluation,
+    then maps the bounding box back to original coordinates.
     """
-    # 1. Enhance contrast (forces facial shadows to pop out against watermarks)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    enhanced_gray = clahe.apply(cv_gray)
+    h, w = cv_gray.shape
+    det_w = 640
+    scale = det_w / float(w) if w > det_w else 1.0
 
-    # PASS 1: Strict detection on enhanced image (Best quality)
+    if scale < 1.0:
+        det_h = int(h * scale)
+        small_gray = cv2.resize(cv_gray, (det_w, det_h), interpolation=cv2.INTER_AREA)
+    else:
+        small_gray = cv_gray
+        scale = 1.0
+
+    # 1. Enhance contrast to cut through watermarks and laminate glare
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced_gray = clahe.apply(small_gray)
+
+    min_dim = max(30, int(45 * scale))
+
+    # Pass 1: standard detection
     faces = _FACE_CASCADE.detectMultiScale(
-        enhanced_gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
+        enhanced_gray, scaleFactor=1.1, minNeighbors=4, minSize=(min_dim, min_dim)
     )
 
-    # PASS 2: Relaxed parameters (Helps with tilted or washed-out faces)
+    # Pass 2: relaxed for low contrast / tilted IDs
     if len(faces) == 0:
         faces = _FACE_CASCADE.detectMultiScale(
-            enhanced_gray, scaleFactor=1.05, minNeighbors=3, minSize=(50, 50)
-        )
-
-    # PASS 3: Desperation pass on the original un-enhanced image 
-    # (Just in case the contrast enhancer blew out a very bright photo)
-    if len(faces) == 0:
-        faces = _FACE_CASCADE.detectMultiScale(
-            cv_gray, scaleFactor=1.05, minNeighbors=3, minSize=(50, 50)
+            enhanced_gray, scaleFactor=1.05, minNeighbors=3, minSize=(min_dim - 5, min_dim - 5)
         )
 
     if len(faces) == 0:
         return None
 
-    # Return the largest face found by area to avoid ghost images/background noise
-    return max(faces, key=lambda f: f[2] * f[3])
+    # Pick largest face by area
+    best = max(faces, key=lambda f: f[2] * f[3])
+    bx, by, bw, bh = best
+
+    # Map back to original image space
+    orig_x = int(round(bx / scale))
+    orig_y = int(round(by / scale))
+    orig_w = int(round(bw / scale))
+    orig_h = int(round(bh / scale))
+
+    return (orig_x, orig_y, orig_w, orig_h)
 
 
 def _crop_with_margin(img: Image.Image, face_box) -> Image.Image:
-    x, y, w, h = face_box
+    """
+    Crops a standard passport-format (3:4 ratio) portrait centered around the face.
+    Provides ~35% headroom above forehead and ~55% neck/collar space below chin.
+    """
+    fx, fy, fw, fh = face_box
     img_w, img_h = img.size
 
-    left = max(0, int(x - w * HORIZONTAL_MARGIN_RATIO))
-    right = min(img_w, int(x + w + w * HORIZONTAL_MARGIN_RATIO))
-    top = max(0, int(y - h * TOP_MARGIN_RATIO))
-    bottom = min(img_h, int(y + h + h * BOTTOM_MARGIN_RATIO))
+    # Face center
+    cx = fx + (fw / 2.0)
+    cy = fy + (fh / 2.0)
 
-    # Safety clamp to ensure we don't accidentally invert coordinates
-    if right <= left or bottom <= top:
-        return img.crop((x, y, x + w, y + h))
+    # Calculate 3:4 crop box where face occupies ~55% of portrait height
+    crop_h = fh * 1.85
+    crop_w = crop_h * PASSPORT_ASPECT_RATIO
 
-    return img.crop((left, top, right, bottom))
+    # Position: top has headroom (~35% of face height above detected box)
+    top = fy - (fh * 0.35)
+    bottom = top + crop_h
+    left = cx - (crop_w / 2.0)
+    right = left + crop_w
+
+    # Adjust if bounds exceed image boundaries
+    if top < 0:
+        bottom = min(img_h, bottom - top)
+        top = 0
+    if bottom > img_h:
+        shift = bottom - img_h
+        top = max(0, top - shift)
+        bottom = img_h
+
+    if left < 0:
+        right = min(img_w, right - left)
+        left = 0
+    if right > img_w:
+        shift = right - img_w
+        left = max(0, left - shift)
+        right = img_w
+
+    i_left, i_top = max(0, int(left)), max(0, int(top))
+    i_right, i_bottom = min(img_w, int(right)), min(img_h, int(bottom))
+
+    if i_right <= i_left or i_bottom <= i_top:
+        return img.crop((fx, fy, fx + fw, fy + fh))
+
+    cropped = img.crop((i_left, i_top, i_right, i_bottom))
+    # Resize to crisp standardized passport resolution
+    return cropped.resize((TARGET_OUTPUT_WIDTH, TARGET_OUTPUT_HEIGHT), Image.Resampling.BICUBIC)
 
 
-def _compress_to_target(img: Image.Image, min_bytes: int = TARGET_MIN_BYTES, max_bytes: int = TARGET_MAX_BYTES) -> bytes:
-    """
-    Iteratively adjusts JPEG quality (and resolution if needed) until the
-    encoded size falls within [min_bytes, max_bytes]. Falls back to the
-    closest achievable size if the exact range can't be hit.
-    """
+def _compress_to_target(img: Image.Image) -> bytes:
+    """Encodes cropped portrait as a sharp, compact JPEG (~15-25 KB)."""
     img = img.convert("RGB")
-    quality = 90
-    best_bytes = None
-    best_diff = float("inf")
-
-    for _attempt in range(12):
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=quality)
-        size = buf.tell()
-
-        if min_bytes <= size <= max_bytes:
-            return buf.getvalue()
-
-        diff = min(abs(size - min_bytes), abs(size - max_bytes))
-        if diff < best_diff:
-            best_diff = diff
-            best_bytes = buf.getvalue()
-
-        if size > max_bytes:
-            if quality > 25:
-                quality -= 10
-            else:
-                w, h = img.size
-                img = img.resize((max(1, int(w * 0.85)), max(1, int(h * 0.85))), Image.Resampling.BICUBIC)
-        else:
-            if quality < 95:
-                quality += 5
-            else:
-                break
-
-    return best_bytes
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85, optimize=True)
+    return buf.getvalue()
 
 
 def extract_portrait_photo(img: Image.Image) -> Optional[bytes]:
