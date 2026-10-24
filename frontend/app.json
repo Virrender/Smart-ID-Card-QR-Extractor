@@ -33,7 +33,9 @@
         }
       ],
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "reactCompiler": true
