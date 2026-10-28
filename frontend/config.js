@@ -8,7 +8,7 @@ import Constants from 'expo-constants';
  * When you deploy your backend Docker container (e.g. on Render, Railway, AWS, DigitalOcean),
  * simply paste your public HTTPS domain here:
  */
-export const PRODUCTION_API_URL = ''; // e.g. "https://carta-api.onrender.com"
+export const PRODUCTION_API_URL = 'http://16.178.173.3';
 
 /**
  * 2. Local Development Auto-Discovery:
