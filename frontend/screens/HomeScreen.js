@@ -145,17 +145,17 @@ export default function HomeScreen({ onNavigate }) {
         <View style={styles.metricsRow}>
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Engine</Text>
-            <Text style={styles.metricValue}>PaddleOCR v3</Text>
+            <Text style={styles.metricValue}>PP-OCRv5</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Security</Text>
-            <Text style={styles.metricValue}>Local Only</Text>
+            <Text style={styles.metricLabel}>Cloud</Text>
+            <Text style={styles.metricValue}>AWS EC2</Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Format</Text>
-            <Text style={styles.metricValue}>FastAPI JSON</Text>
+            <Text style={styles.metricValue}>Carta Pass</Text>
           </View>
         </View>
 

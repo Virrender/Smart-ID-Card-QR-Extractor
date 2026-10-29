@@ -8,11 +8,19 @@
     "scheme": "carta",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Carta to access your camera to scan ID barcodes and capture documents.",
+        "NSPhotoLibraryUsageDescription": "Allow Carta to access your photos to select identity card images."
+      }
     },
     "android": {
       "package": "com.carta.idscanner",
-      "usesCleartextTraffic": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -52,12 +52,13 @@ export default function ScanScreen({ onBack }) {
 
   const handleBarcodeScanned = async (scanResult) => {
     if (scanned || loading) return;
+    const payload = scanResult?.data || scanResult?.raw || '';
+    if (!payload || typeof payload !== 'string' || payload.trim().length === 0) return;
+
     setScanned(true);
     setLoading(true);
     setErrorDetail(null);
     setStatusMsg('Code detected, reading details...');
-
-    const payload = scanResult?.data || scanResult?.raw || '';
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/extract/qr-payload`, {
