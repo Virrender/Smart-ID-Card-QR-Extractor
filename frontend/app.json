@@ -34,20 +34,17 @@
           "imageWidth": 76
         }
       ],
-      "expo-router",
-      "expo-sharing",
-      "expo-image",
-      "expo-status-bar"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Carta to access your camera to scan ID cards."
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
     },
     "extra": {
-      "router": {
-        "asyncRoutes": {
-          "web": true
-        }
-      },
       "eas": {
         "projectId": "285c863a-3557-4548-8467-427dcd6ff64a"
       }
