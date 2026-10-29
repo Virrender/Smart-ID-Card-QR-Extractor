@@ -39,6 +39,14 @@
         {
           "cameraPermission": "Allow Carta to access your camera to scan ID cards."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {
