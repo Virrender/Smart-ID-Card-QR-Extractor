@@ -37,7 +37,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Carta to access your camera to scan ID cards."
+          "cameraPermission": "Allow Carta to access your camera to scan ID cards.",
+          "recordAudioPermission": false,
+          "barcodeScannerEnabled": true
         }
       ],
       [

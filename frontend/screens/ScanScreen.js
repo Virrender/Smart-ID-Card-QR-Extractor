@@ -131,7 +131,9 @@ export default function ScanScreen({ onBack }) {
           style={styles.camera}
           facing="back"
           enableTorch={torch}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr', 'pdf417', 'code128', 'datamatrix', 'aztec'],
+          }}
           onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}>
           {/* Viewfinder Overlay */}
           <View style={styles.overlay}>
